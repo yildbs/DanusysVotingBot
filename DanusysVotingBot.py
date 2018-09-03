@@ -2,7 +2,9 @@
  
 import os
 from flask import Flask, request, jsonify
- 
+from pymongo import MongoClient
+
+
 app = Flask(__name__)
  
 @app.route('/keyboard')
@@ -14,17 +16,20 @@ def Keyboard():
     return jsonify(dataSend)
 
 class User:
-    def __init__(self, user_key, name):
+    def __init__(self, user_key):
         self.user_key = user_key
         self.name = name
-        self.state = 'DEFAULT'
         self.voteto = ''
+		self.state = 'DEFAULT'
+		self.adminstate = 'DEFAULT'
+		self.modified = False
 
 class Users:
-    def __init__(self):
+    def __init__(self, DB):
         self.users = {}
+		self.DB = DB
 
-    def find(self, user_key):
+    def findbyuserkey(self, user_key):
         for _, user in self.users.items():
             if user_key == user.user_key:
                 return True
@@ -36,9 +41,14 @@ class Users:
                 return True
         return False
 
-    def adduser(self, user_key, name):
-        self.users[user_key] = User(user_key, name)
-
+    def adduser(self, user_key):
+        self.users[user_key] = User(user_key)
+		self.users[user_key].modified = True
+    
+	def setusername(self, user_key, name):
+        self.users[user_key].name = name
+		self.users[user_key].modified = True
+        
     def getusername(self, user_key):
         try:
             return self.users[user_key].name
@@ -54,11 +64,26 @@ class Users:
     def setuserstate(self, user_key, state):
         try:
             self.users[user_key].state = state
+			self.users[user_key].modified = True
+        except:
+            return 'NOEXISTINGUSER'
+			
+    def getuseradminstate(self, user_key):
+        try:
+            return self.users[user_key].state
+        except:
+            return 'NOEXISTINGUSER'
+
+    def setuseradminstate(self, user_key, state):
+        try:
+            self.users[user_key].adminstate = state
+			self.users[user_key].modified = True
         except:
             return 'NOEXISTINGUSER'
 
     def setuservoteto(self, user_key, excellent):
         self.users[user_key].voteto = excellent
+		self.users[user_key].modified = True
         
     def getuservoteto(self, user_key):
         return self.users[user_key].voteto
@@ -79,16 +104,44 @@ class Users:
         for voteto, num in counting.items():
             text2 += voteto + ' - ' + str(num) + '표'
         return text2 + "\n" + text + "\n"
+	
+	def updatetodb(self):
+		posts = db.posts
+        for _, user in self.users.items():
+            if user.modified:
+				user.modified = False
+				if users_post = posts.find_one({'user_key': user.user_key}) is None:
+					data = {
+						'user_key' : user.user_key,
+						'name' : user.name,
+						'voteto' : user.voteto,
+						'state' : user.state,
+						'adminstate' : user.adminstate
+					}
+					posts.insert_one(data)
+				else:
+					users_post = posts.find_one_and_update({'user_key': user.user_key}
+					, { 'name' : user.name,
+						'voteto' : user.voteto,
+						'state' : user.state,
+						'adminstate' : user.adminstate}
+					)
+		posts.save() ###############TODO
+		
+	def updatefromdb(self):
+		posts = db.posts
+
+		#posts.save() ###############TODO			
 
 
 REASON = "\n\n"
-with open('__Reason.txt', 'r') as f:
+with open('__Reason.txt', 'r', encoding='UTF8') as f:
     REASON += f.read()
     REASON = REASON.replace('\n\n', '\n')
 
 
 CANDIDATES = []
-with open('__Candidates.txt', 'r') as f:
+with open('__Candidates.txt', 'r', encoding='UTF8') as f:
     for line in f.readlines():
         line = line.replace('\n','')
         line = line.replace('\r','')
@@ -96,7 +149,7 @@ with open('__Candidates.txt', 'r') as f:
 
 
 GROUPS = {}
-with open('__Groups.txt', 'r') as f:
+with open('__Groups.txt', 'r', encoding='UTF8') as f:
     groupname = '' 
     for line in f.readlines():
         line = line.replace('\n','')
@@ -112,7 +165,7 @@ with open('__Groups.txt', 'r') as f:
 
             
 PASSWORD = ''
-with open('__Password.txt', 'r') as f:
+with open('__Password.txt', 'r', encoding='UTF8') as f:
     for line in f.readlines():
         line = line.replace('\n','')
         line = line.replace('\r','')
@@ -128,7 +181,17 @@ HELP = ""
 HELP += "\n\n\n다누시스투표봇사용방법\n\n"
 HELP += "'우수사원' : 우수사원 투표 시 입력\n"
 
-USERS = Users()
+ADMINHELP = ""
+ADMINHELP += "\n\n\n다누시스투표봇 관리자 명령어\n\n"
+ADMINHELP += "'관리자' : 관리자 명령어 확인\n"
+ADMINHELP += "'투표현황' : 투표 결과 확인\n"
+
+
+client = MongoClient('localhost', 27017)
+DB = client['DanusysVotingBot']
+
+USERS = Users(DB)
+
 
 @app.route('/message', methods=['POST'])
 def Message():
@@ -150,7 +213,7 @@ def Message():
     ###############################
     #### state 설정
     ###############################
-    if USERS.find(user_key):
+    if USERS.findbyuserkey(user_key):
         state = USERS.getuserstate(user_key)
         if content == u"시작":
             state = 'DEFAULT'
@@ -179,8 +242,17 @@ def Message():
                     "text": "투표할 우수사원의 이름을 입력해주세요." + REASON
                 }
             }
+		elif content == u"관리자":
+            USERS.setuserstate(user_key, 'PASSWORD')
+			USERS.setuseradminstate(user_key, 'HELPADMIN')
+            dataSend = {
+                "message": {
+                    "text": "관리자만 확인 할 수 있습니다. 관리자라면 비밀번호를 입력해주세요."
+                }
+            }	
         elif content == u"투표현황":
             USERS.setuserstate(user_key, 'PASSWORD')
+			USERS.setuseradminstate(user_key, 'RESULT')
             dataSend = {
                 "message": {
                     "text": "관리자만 확인 할 수 있습니다. 관리자라면 비밀번호를 입력해주세요."
@@ -226,24 +298,32 @@ def Message():
     elif state == 'PASSWORD':
         USERS.setuserstate(user_key, 'DEFAULT')
         if content == PASSWORD:
-            summary = USERS.getvotingsummary()
-            dataSend = {
-                "message": {
-                    "text": summary
-                }
-            }
+			if USERS.getuseradminstate(user_key) == 'ADMINHELP':
+				dataSend = {
+					"message": {
+						"text": ADMINHELP
+					}
+				}		
+			elif USERS.getuseradminstate(user_key) == 'RESULT':
+				summary = USERS.getvotingsummary()
+				dataSend = {
+					"message": {
+						"text": summary
+					}
+				}
         else:
             dataSend = {
                 "message": {
                     "text": "비밀번호가 틀렸습니다. 처음으로 되돌아 갑니다. " + HELP
                 }
             }
+		USERS.setuseradminstate(user_key, 'DEFAULT')
             
     ###############################
     #### FSM ENROLL: 신규 가입 메시지 출력
     ###############################
     elif state == 'ENROLL':
-        USERS.adduser(user_key, '')
+        USERS.adduser(user_key)
         USERS.setuserstate(user_key, 'MYNAME')
         dataSend = {
             "message": {
@@ -268,13 +348,16 @@ def Message():
                 }
             }
         else:
-            USERS.adduser(user_key, content)
+            USERS.setusername(user_key, content)
             USERS.setuserstate(user_key, 'DEFAULT')
             dataSend = {
                 "message": {
                     "text": "당신의 이름은 " + content + " 입니다!" + HELP
                 }
             }
+	
+	USERS.updatetodb()
+			
     return jsonify(dataSend)
  
 
