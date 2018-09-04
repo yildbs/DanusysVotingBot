@@ -82,13 +82,13 @@ class Users:
 
 
 REASON = "\n\n"
-with open('__Reason.txt', 'r') as f:
+with open('__Reason.txt', 'r', encoding='UTF8') as f:
     REASON += f.read()
     REASON = REASON.replace('\n\n', '\n')
 
 
 CANDIDATES = []
-with open('__Candidates.txt', 'r') as f:
+with open('__Candidates.txt', 'r', encoding='UTF8') as f:
     for line in f.readlines():
         line = line.replace('\n','')
         line = line.replace('\r','')
@@ -96,7 +96,7 @@ with open('__Candidates.txt', 'r') as f:
 
 
 GROUPS = {}
-with open('__Groups.txt', 'r') as f:
+with open('__Groups.txt', 'r', encoding='UTF8') as f:
     groupname = '' 
     for line in f.readlines():
         line = line.replace('\n','')
@@ -112,7 +112,7 @@ with open('__Groups.txt', 'r') as f:
 
             
 PASSWORD = ''
-with open('__Password.txt', 'r') as f:
+with open('__Password.txt', 'r', encoding='UTF8') as f:
     for line in f.readlines():
         line = line.replace('\n','')
         line = line.replace('\r','')
