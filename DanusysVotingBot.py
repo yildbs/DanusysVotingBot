@@ -161,8 +161,11 @@ with open('__Candidates.txt', 'r', encoding='UTF8') as f:
         line = line.replace('\r','')
         CANDIDATES.append(line)
 
-
 GROUPS = {}
+
+for candidate in CANDIDATES:
+	GROUPS[candidate] = 'CANDIDATES'
+
 with open('__Groups.txt', 'r', encoding='UTF8') as f:
     groupname = '' 
     for line in f.readlines():
@@ -176,8 +179,8 @@ with open('__Groups.txt', 'r', encoding='UTF8') as f:
             groupname = line
         else:
             GROUPS[line] = groupname
-
-            
+			
+         
 PASSWORD = ''
 with open('__Password.txt', 'r', encoding='UTF8') as f:
     for line in f.readlines():
@@ -193,7 +196,7 @@ with open('__Password.txt', 'r', encoding='UTF8') as f:
 
 HELP = ""
 HELP += "\n다누시스투표봇사용방법\n\n"
-HELP += "'우수사원' : 입력 시 우수사원 투표\n"
+HELP += "'투표하기' : 투표하기\n\n"
 HELP += "'관리자' : 관리자 명령어 확인\n"
 
 ADMINHELP = ""
@@ -249,12 +252,12 @@ def Message():
                     "text": "안녕하세요. "+ USERS.getusername(user_key) + "님" + HELP
                 }
             }
-        elif content == u"우수사원":
-            USERS.setuserstate(user_key, 'EXCELLENT')
+        elif content == u"투표하기":
+            USERS.setuserstate(user_key, 'VOTING')
             text = ""
             dataSend = {
                 "message": {
-                    "text": "투표할 우수사원의 이름을 입력해주세요." + REASON
+                    "text": "투표해주세요." + REASON
                 }
             }
         elif content == u"관리자":
@@ -297,15 +300,15 @@ def Message():
                 }
             }
     ###############################
-    #### FSM EXCELLENT : 우수사원 투표
+    #### FSM VOTING : 투표하기
     ###############################
-    elif state == 'EXCELLENT':
+    elif state == 'VOTING':
         currentusername = USERS.getusername(user_key)
 
         if content not in CANDIDATES:
             dataSend = {
                 "message": {
-                    "text": content + "는 우수 사원 후보 중에 없습니다. '이름'만 다시 입력해주세요\n"
+                    "text": content + "는 후보 중에 없습니다. 다시 입력해주세요\n"
                 }
             }
         elif GROUPS[currentusername] == GROUPS[content]:
