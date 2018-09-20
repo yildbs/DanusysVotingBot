@@ -38,7 +38,10 @@ class Users:
         self.users = {}
     
     def save(self, user_key):
-        self.users[user_key].save()
+        try:
+            self.users[user_key].save()
+        except:
+            pass
     
     def loadfromdata(self):
         for filename in glob.glob('data/*'):
@@ -50,6 +53,20 @@ class Users:
                 self.setusername(user_key, name)
                 self.setuservoteto(user_key, voteto)
 
+    def deleteuser(self, name):
+        deleted = False
+        if self.findbyname(name):
+            for user_key, user in self.users.items():
+                if name == user.name:
+                    deleted = True
+                    self.users.pop(user_key)
+                    try:
+                        os.remove('data/'+user_key)
+                    except:
+                        pass
+                    break
+        return deleted
+                
     def find(self, user_key):
         for _, user in self.users.items():
             if user_key == user.user_key:
@@ -108,6 +125,10 @@ class Users:
         
     def getuservoteto(self, user_key):
         return self.users[user_key].voteto
+    
+    def deletevotingresults(self):
+        for user_key, user in self.users.items():
+            user.voteto = ''
 
     def getvotingsummary(self):
         counting = {}
@@ -123,7 +144,7 @@ class Users:
                     counting[voteto] += 1
         text2 = ""
         for voteto, num in counting.items():
-            text2 += voteto + ' - ' + str(num) + '표'
+            text2 += voteto + ' - ' + str(num) + '표\n'
         return text2 + "\n\n" + text + "\n"
 
 
@@ -179,6 +200,9 @@ ADMINHELP = ""
 ADMINHELP += "\n다누시스투표봇 관리자 명령어\n\n"
 ADMINHELP += "'관리자' : 관리자 명령어 확인\n"
 ADMINHELP += "'투표결과' : 투표 결과 확인\n"
+ADMINHELP += "'투표결과삭제진짜진짜123' : 투표 결과 제거, 사용시 주의\n"
+ADMINHELP += "'사용자제거' : 이름을 잘못 등록했거나 할때 사용자 제거\n"
+
 #ADMINHELP += "'결과제거' : 투표 결과 제거\n"
 
 USERS = Users()
@@ -238,7 +262,7 @@ def Message():
             USERS.setuseradminstate(user_key, 'ADMINHELP')
             dataSend = {
                 "message": {
-                    "text": "관리자만 확인 할 수 있습니다. 관리자라면 비밀번호를 입력해주세요."
+                    "text": "관리자전용: 비밀번호를 입력해주세요."
                 }
             }    
         elif content == u"투표결과":
@@ -246,7 +270,23 @@ def Message():
             USERS.setuseradminstate(user_key, 'RESULT')
             dataSend = {
                 "message": {
-                    "text": "관리자만 확인 할 수 있습니다. 관리자라면 비밀번호를 입력해주세요."
+                    "text": "관리자전용: 비밀번호를 입력해주세요."
+                }
+            }
+        elif content == u"투표결과삭제진짜진짜123":
+            USERS.setuserstate(user_key, 'PASSWORD')
+            USERS.setuseradminstate(user_key, 'DELETERESULT')
+            dataSend = {
+                "message": {
+                    "text": "관리자전용: 비밀번호를 입력해주세요."
+                }
+            }
+        elif content == u"사용자제거":
+            USERS.setuserstate(user_key, 'PASSWORD')
+            USERS.setuseradminstate(user_key, 'DELETEUSER')
+            dataSend = {
+                "message": {
+                    "text": "관리자전용: 비밀번호를 입력해주세요."
                 }
             }
         else:
@@ -302,6 +342,22 @@ def Message():
                         "text": summary
                     }
                 }
+            elif USERS.getuseradminstate(user_key) == 'DELETERESULT':
+                summary = USERS.getvotingsummary()
+                summary += "\n\n투표결과 삭제되었습니다\n"
+                USERS.deletevotingresults()
+                dataSend = {
+                    "message": {
+                        "text": summary
+                    }
+                }
+            elif USERS.getuseradminstate(user_key) == 'DELETEUSER':
+                USERS.setuserstate(user_key, 'DELETEUSER')
+                dataSend = {
+                    "message": {
+                        "text": "제거할 사람의 이름을 입력하세요\n"
+                    }
+                }    
         else:
             dataSend = {
                 "message": {
@@ -309,6 +365,23 @@ def Message():
                 }
             }
         USERS.setuseradminstate(user_key, 'DEFAULT')
+
+    ###############################
+    #### FSM DELETEUSER: 유저 제거
+    ###############################
+    elif state == 'DELETEUSER':
+        message = ''
+        if USERS.deleteuser(content):
+            message += content + ' 제거 되었습니다'
+        else:
+            message += content + ' 제거 되지 않았습니다'
+        USERS.setuserstate(user_key, 'DEFAULT')
+        USERS.setuseradminstate(user_key, 'DEFAULT')
+        dataSend = {
+            "message": {
+                "text": message
+            }
+        }        
         
     ###############################
     #### FSM ENROLL: 신규 가입 메시지 출력
