@@ -17,14 +17,6 @@ app = Flask(__name__)
 ###################################
 # Global variables
 ###################################
-PASSWORD = ''
-with open('__Password.txt', 'r', encoding='utf-8-sig') as f:
-    for line in f.readlines():
-        line = line.replace('\n','')
-        line = line.replace('\r','')
-        PASSWORD = line
-        break
-
 HELP = ""
 HELP += "\n다누시스투표봇사용방법\n\n"
 HELP += "'투표하기' : 투표하기\n"
@@ -49,7 +41,14 @@ for articlename in glob.glob('___*'):
     article = voting.VotingArticle(articlename)
     ARTICLES[articlename] = article
 
-# Groups
+PASSWORD = ''
+with open('__Password.txt', 'r', encoding='utf-8-sig') as f:
+    for line in f.readlines():
+        line = line.replace('\n','')
+        line = line.replace('\r','')
+        PASSWORD = line
+        break
+
 GROUPS = {}
 with open('__Groups.txt', 'r', encoding='utf-8-sig') as f:
     groupname = '' 
@@ -57,7 +56,6 @@ with open('__Groups.txt', 'r', encoding='utf-8-sig') as f:
         line = line.replace('\n','')
         line = line.replace('\r','')
         line = line.replace(' ','')
-
         if line == '':
             continue
         elif line.startswith('Group'):

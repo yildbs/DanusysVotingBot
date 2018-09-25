@@ -71,8 +71,6 @@ class Users:
         self.users[user_key].modified = True
         
     def getusername(self, user_key):
-        print(user_key)
-        print(self.users)
         try:
             return self.users[user_key].name
         except:
